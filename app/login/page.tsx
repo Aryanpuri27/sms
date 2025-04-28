@@ -47,8 +47,6 @@ function LoginForm() {
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [redirecting, setRedirecting] = useState(false);
-  const [redirectAttempted, setRedirectAttempted] = useState(false);
   const {
     authError,
     clearError,
@@ -59,59 +57,23 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
-  const callbackUrl = searchParams?.get("callbackUrl") || "/";
   const { data: session, status } = useSession();
 
   // Redirect if already authenticated
   useEffect(() => {
-    // To prevent infinite loops, only redirect once per mount
-    if (status === "authenticated" && session?.user && !redirectAttempted) {
-      // Mark that we've attempted redirect to prevent loops
-      setRedirectAttempted(true);
-      setRedirecting(true);
-
-      // Get user role and convert to string if needed
+    if (status === "authenticated" && session?.user) {
       const userRole =
         typeof session.user.role === "string"
           ? session.user.role
           : String(session.user.role);
 
-      // Determine where to redirect based on user role
       const redirectPath = determineRedirectPath(userRole);
-
-      console.log("User authenticated:", {
-        role: userRole,
-        redirectPath,
-      });
-
-      // Show success message before redirecting
-      toast({
-        title: "Already signed in",
-        description: `Redirecting to your dashboard...`,
-        variant: "default",
-      });
-
-      // Instead of automatic redirect, let the user choose
-      // This prevents redirect loops
-      console.log("Manual redirect to:", redirectPath);
+      window.location.href = redirectPath;
     }
-  }, [status, session, redirectAttempted]); // Remove router and toast from dependencies
-
-  // Add effect to run the session check
-  useEffect(() => {
-    // Check session status manually
-    if (status === "authenticated") {
-      checkSessionStatus().then((result) => {
-        console.log("Server session check:", result);
-      });
-    }
-  }, [status]);
+  }, [status, session]);
 
   // Helper function to determine redirect path based on role
   const determineRedirectPath = (role: string) => {
-    console.log("Determining redirect path for role:", role);
-
-    // Default paths for each role
     switch (role) {
       case "ADMIN":
         return "/admin/dashboard";
@@ -143,13 +105,8 @@ function LoginForm() {
         redirect: false,
       });
 
-      console.log("NextAuth sign in result:", result);
-
       if (result?.error) {
-        console.error("NextAuth auth error:", result.error);
-
         // Fallback to direct login API
-        console.log("Trying direct login API as fallback...");
         const directLoginResponse = await fetch("/api/auth/direct-login", {
           method: "POST",
           headers: {
@@ -159,40 +116,34 @@ function LoginForm() {
         });
 
         const directLoginResult = await directLoginResponse.json();
-        console.log("Direct login result:", directLoginResult);
 
         if (directLoginResult.success) {
           toast({
             title: "Login Successful",
-            description: "You have been successfully logged in via direct API.",
+            description: "Redirecting to your dashboard...",
             variant: "default",
           });
 
-          setTimeout(() => {
-            window.location.href = directLoginResult.redirect;
-          }, 800);
+          // Use direct navigation
+          window.location.href = directLoginResult.redirect;
         } else {
-          // Both login methods failed, show error
           setCredentialsError();
         }
-      } else if (result?.ok) {
-        console.log("Authentication successful, redirecting to:", callbackUrl);
+      } else {
         toast({
           title: "Login Successful",
-          description: "You have been successfully logged in.",
+          description: "Redirecting to your dashboard...",
           variant: "default",
         });
 
-        // Use direct window location change instead of router.push
-        setTimeout(() => {
-          window.location.href = callbackUrl;
-        }, 800);
-      } else {
-        console.warn("Unexpected auth result:", result);
-        setCustomError(
-          "Authentication Issue",
-          "Received an unexpected response. Please try again."
-        );
+        // Force a session check and redirect
+        const checkSession = await fetch("/api/auth/check-session");
+        const sessionData = await checkSession.json();
+
+        if (sessionData.authenticated && sessionData.user?.role) {
+          const redirectPath = determineRedirectPath(sessionData.user.role);
+          window.location.href = redirectPath;
+        }
       }
     } catch (error) {
       console.error("Unexpected error during sign in:", error);
@@ -205,19 +156,7 @@ function LoginForm() {
     }
   };
 
-  // Add function to reset session completely using our new API
-  const handleResetSession = () => {
-    toast({
-      title: "Resetting Session",
-      description: "Clearing auth data. The page will refresh...",
-      variant: "default",
-    });
-
-    // Navigate to reset-session API which handles everything
-    window.location.href = "/api/auth/reset-session";
-  };
-
-  // Show loading or redirecting state instead of the login form if applicable
+  // Show loading state
   if (status === "loading") {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-gray-50 to-gray-100">
@@ -226,77 +165,6 @@ function LoginForm() {
             <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
             <h2 className="text-xl font-semibold">Loading session...</h2>
             <p className="text-sm text-gray-500 mt-2">Please wait</p>
-          </div>
-        </Card>
-      </div>
-    );
-  }
-
-  // Show redirecting state - avoid automatic redirect, let user manually redirect
-  if (redirecting) {
-    const userRole = session?.user?.role;
-    const redirectPath = userRole
-      ? determineRedirectPath(
-          typeof userRole === "string" ? userRole : String(userRole)
-        )
-      : "/";
-
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-gray-50 to-gray-100">
-        <Card className="w-full max-w-md p-6 shadow-lg">
-          <div className="flex flex-col items-center justify-center py-8">
-            <CheckCircle2 className="h-12 w-12 text-green-500 mb-4" />
-            <h2 className="text-xl font-semibold">Already Signed In</h2>
-            <p className="text-sm text-gray-500 mt-2 mb-6">
-              Session detected for {session?.user?.email}
-            </p>
-
-            <div className="w-full space-y-3">
-              <Button
-                variant="default"
-                className="w-full bg-blue-600 hover:bg-blue-700"
-                onClick={() => {
-                  // Use direct navigation approach
-                  window.location.href = redirectPath;
-                }}
-              >
-                Go to Dashboard
-              </Button>
-
-              <Button
-                variant="outline"
-                className="w-full"
-                onClick={() => {
-                  // Just reset the UI state and show login form
-                  setRedirecting(false);
-                }}
-              >
-                Stay on Login Page
-              </Button>
-
-              <Button
-                variant="outline"
-                className="w-full border-red-200 text-red-600 hover:bg-red-50"
-                onClick={() => {
-                  // Sign out and reload the page
-                  signOut({ redirect: false }).then(() => {
-                    window.location.reload();
-                  });
-                }}
-              >
-                Sign Out
-              </Button>
-            </div>
-
-            <div className="mt-4 w-full pt-4 border-t border-gray-100">
-              <Button
-                variant="link"
-                className="text-xs text-gray-500 p-0 h-auto"
-                onClick={handleResetSession}
-              >
-                Reset Session
-              </Button>
-            </div>
           </div>
         </Card>
       </div>

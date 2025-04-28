@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "../auth/[...nextauth]/route";
-import { hash } from "bcrypt";
+import { hash } from "bcryptjs";
 
 // GET: Fetch all students with pagination, sorting, and filtering
 export async function GET(request: NextRequest) {

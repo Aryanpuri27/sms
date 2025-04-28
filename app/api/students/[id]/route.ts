@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "../../auth/[...nextauth]/route";
-import { hash } from "bcrypt";
+import { compare } from "bcryptjs";
 
 // GET: Fetch a single student by ID
 export async function GET(
@@ -164,7 +164,7 @@ export async function PUT(
     // Hash password if provided
     let hashedPassword = undefined;
     if (password) {
-      hashedPassword = await hash(password, 10);
+      hashedPassword = await compare(password, existingStudent.user.password);
     }
 
     // Update student and user in a transaction

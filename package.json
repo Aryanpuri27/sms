@@ -42,7 +42,6 @@
     "@radix-ui/react-tooltip": "1.1.6",
     "@types/bcryptjs": "^2.4.6",
     "autoprefixer": "^10.4.20",
-    "bcrypt": "^5.1.1",
     "bcryptjs": "^3.0.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -69,7 +68,6 @@
     "zod": "^3.24.3"
   },
   "devDependencies": {
-    "@types/bcrypt": "^5.0.2",
     "@types/node": "^20.9.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",

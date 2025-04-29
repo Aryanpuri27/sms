@@ -1,10 +1,19 @@
-"use client"
+"use client";
 
-import Link from "next/link"
-import { usePathname } from "next/navigation"
-import { Bell, Calendar, FileText, GraduationCap, LayoutDashboard, LogOut, MessageSquare, User } from "lucide-react"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Button } from "@/components/ui/button"
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import {
+  Bell,
+  Calendar,
+  FileText,
+  GraduationCap,
+  LayoutDashboard,
+  LogOut,
+  MessageSquare,
+  User,
+} from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import {
   Sidebar,
   SidebarContent,
@@ -15,14 +24,22 @@ import {
   SidebarMenuButton,
   SidebarProvider,
   SidebarTrigger,
-} from "@/components/ui/sidebar"
+} from "@/components/ui/sidebar";
+import { useSession, signOut } from "next-auth/react";
 
 export default function StudentSidebar() {
-  const pathname = usePathname()
+  const pathname = usePathname();
+  const { data: session } = useSession();
+  const router = useRouter();
 
   const isActive = (path: string) => {
-    return pathname === path || pathname?.startsWith(`${path}/`)
-  }
+    return pathname === path || pathname?.startsWith(`${path}/`);
+  };
+
+  const handleSignOut = async () => {
+    await signOut({ redirect: false });
+    router.push("/login");
+  };
 
   return (
     <SidebarProvider>
@@ -37,7 +54,10 @@ export default function StudentSidebar() {
         <SidebarContent>
           <SidebarMenu>
             <SidebarMenuItem>
-              <SidebarMenuButton asChild isActive={isActive("/student/dashboard")}>
+              <SidebarMenuButton
+                asChild
+                isActive={isActive("/student/dashboard")}
+              >
                 <Link href="/student/dashboard">
                   <LayoutDashboard className="h-4 w-4" />
                   <span>Dashboard</span>
@@ -45,7 +65,10 @@ export default function StudentSidebar() {
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
-              <SidebarMenuButton asChild isActive={isActive("/student/timetable")}>
+              <SidebarMenuButton
+                asChild
+                isActive={isActive("/student/timetable")}
+              >
                 <Link href="/student/timetable">
                   <Calendar className="h-4 w-4" />
                   <span>Timetable</span>
@@ -53,7 +76,10 @@ export default function StudentSidebar() {
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
-              <SidebarMenuButton asChild isActive={isActive("/student/assignments")}>
+              <SidebarMenuButton
+                asChild
+                isActive={isActive("/student/assignments")}
+              >
                 <Link href="/student/assignments">
                   <FileText className="h-4 w-4" />
                   <span>Assignments</span>
@@ -69,7 +95,10 @@ export default function StudentSidebar() {
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
-              <SidebarMenuButton asChild isActive={isActive("/student/attendance")}>
+              <SidebarMenuButton
+                asChild
+                isActive={isActive("/student/attendance")}
+              >
                 <Link href="/student/attendance">
                   <FileText className="h-4 w-4" />
                   <span>Attendance</span>
@@ -77,7 +106,10 @@ export default function StudentSidebar() {
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
-              <SidebarMenuButton asChild isActive={isActive("/student/announcements")}>
+              <SidebarMenuButton
+                asChild
+                isActive={isActive("/student/announcements")}
+              >
                 <Link href="/student/announcements">
                   <Bell className="h-4 w-4" />
                   <span>Announcements</span>
@@ -85,7 +117,10 @@ export default function StudentSidebar() {
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
-              <SidebarMenuButton asChild isActive={isActive("/student/messages")}>
+              <SidebarMenuButton
+                asChild
+                isActive={isActive("/student/messages")}
+              >
                 <Link href="/student/messages">
                   <MessageSquare className="h-4 w-4" />
                   <span>Messages</span>
@@ -93,7 +128,10 @@ export default function StudentSidebar() {
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
-              <SidebarMenuButton asChild isActive={isActive("/student/profile")}>
+              <SidebarMenuButton
+                asChild
+                isActive={isActive("/student/profile")}
+              >
                 <Link href="/student/profile">
                   <User className="h-4 w-4" />
                   <span>Profile</span>
@@ -105,19 +143,34 @@ export default function StudentSidebar() {
         <SidebarFooter className="border-t p-2">
           <div className="flex items-center gap-2 p-2">
             <Avatar>
-              <AvatarImage src="/placeholder.svg?height=32&width=32" />
-              <AvatarFallback>AS</AvatarFallback>
+              <AvatarImage
+                src={
+                  session?.user?.image || "/placeholder.svg?height=32&width=32"
+                }
+              />
+              <AvatarFallback>
+                {session?.user?.name?.charAt(0) || "S"}
+              </AvatarFallback>
             </Avatar>
             <div className="flex flex-col">
-              <span className="text-sm font-medium">Aarav Sharma</span>
-              <span className="text-xs text-muted-foreground">Class 10A • Roll No. 1001</span>
+              <span className="text-sm font-medium">
+                {session?.user?.name || "Student"}
+              </span>
+              <span className="text-xs text-muted-foreground">
+                {session?.user?.email || "student@edusync.com"}
+              </span>
             </div>
-            <Button variant="ghost" size="icon" className="ml-auto">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="ml-auto"
+              onClick={handleSignOut}
+            >
               <LogOut className="h-4 w-4" />
             </Button>
           </div>
         </SidebarFooter>
       </Sidebar>
     </SidebarProvider>
-  )
+  );
 }

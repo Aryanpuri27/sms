@@ -1,4 +1,5 @@
 "use client";
+export const dynamic = "force-dynamic";
 
 import { useState, useEffect } from "react";
 import { signIn, useSession } from "next-auth/react";
@@ -34,10 +35,11 @@ function LoginForm() {
   const { toast } = useToast();
   const { data: session, status } = useSession();
 
-  // Handle session-based redirect
+  // Handle session-based redirect with client-side navigation
   useEffect(() => {
     if (status === "authenticated" && session?.user?.role) {
       const redirectPath = determineRedirectPath(session.user.role.toString());
+      // Using router.push for client-side navigation
       router.push(redirectPath);
     }
   }, [status, session, router]);
@@ -89,6 +91,8 @@ function LoginForm() {
             title: "Login Successful",
             description: "Redirecting to dashboard...",
           });
+
+          // Use router for client-side navigation
           router.push(directLoginResult.redirect);
         } else {
           setCredentialsError();
@@ -98,6 +102,8 @@ function LoginForm() {
           title: "Login Successful",
           description: "Redirecting to dashboard...",
         });
+
+        // The session will update automatically and the useEffect above will handle redirect
       }
     } catch (error) {
       console.error("Login error:", error);
@@ -145,7 +151,7 @@ function LoginForm() {
             {authError && (
               <Alert
                 variant="destructive"
-                className="mb-6 animate-bounceIn shadow-md border-red-300 text-red-800 bg-red-50"
+                className="mb-6 shadow-md border-red-300 text-red-800 bg-red-50"
               >
                 <AlertCircle className="h-4 w-4" />
                 <AlertTitle className="font-medium">

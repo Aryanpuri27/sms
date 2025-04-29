@@ -1,46 +1,22 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
-import { signIn, useSession, signOut } from "next-auth/react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useState, useEffect } from "react";
+import { signIn, useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useAuthError } from "@/hooks/use-auth-error";
-import {
-  EyeIcon,
-  EyeOffIcon,
-  LockIcon,
-  MailIcon,
-  AlertCircle,
-  XCircle,
-  Loader2,
-  CheckCircle2,
-} from "lucide-react";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import AuthDebug from "@/components/auth-debug";
-
-// Function to manually check session
-async function checkSessionStatus() {
-  try {
-    const response = await fetch("/api/auth/check-session");
-    const data = await response.json();
-    console.log("Session check result:", data);
-    return data;
-  } catch (error) {
-    console.error("Error checking session:", error);
-    return { authenticated: false, error: String(error) };
-  }
-}
+import { EyeIcon, EyeOffIcon, Loader2, AlertCircle } from "lucide-react";
+import { Alert, AlertTitle } from "@/components/ui/alert";
 
 function LoginForm() {
   const [email, setEmail] = useState("");
@@ -55,26 +31,20 @@ function LoginForm() {
     setCustomError,
   } = useAuthError();
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { toast } = useToast();
   const { data: session, status } = useSession();
 
-  // Redirect if already authenticated
+  // Handle session-based redirect
   useEffect(() => {
-    if (status === "authenticated" && session?.user) {
-      const userRole =
-        typeof session.user.role === "string"
-          ? session.user.role
-          : String(session.user.role);
-
-      const redirectPath = determineRedirectPath(userRole);
-      window.location.href = redirectPath;
+    if (status === "authenticated" && session?.user?.role) {
+      const redirectPath = determineRedirectPath(session.user.role.toString());
+      router.push(redirectPath);
     }
-  }, [status, session]);
+  }, [status, session, router]);
 
   // Helper function to determine redirect path based on role
   const determineRedirectPath = (role: string) => {
-    switch (role) {
+    switch (role.toUpperCase()) {
       case "ADMIN":
         return "/admin/dashboard";
       case "TEACHER":
@@ -98,7 +68,6 @@ function LoginForm() {
     try {
       setIsLoading(true);
 
-      // Try NextAuth login first
       const result = await signIn("credentials", {
         email,
         password,
@@ -106,12 +75,10 @@ function LoginForm() {
       });
 
       if (result?.error) {
-        // Fallback to direct login API
+        // Try direct login as fallback
         const directLoginResponse = await fetch("/api/auth/direct-login", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email, password }),
         });
 
@@ -120,62 +87,47 @@ function LoginForm() {
         if (directLoginResult.success) {
           toast({
             title: "Login Successful",
-            description: "Redirecting to your dashboard...",
-            variant: "default",
+            description: "Redirecting to dashboard...",
           });
-
-          // Use direct navigation
-          window.location.href = directLoginResult.redirect;
+          router.push(directLoginResult.redirect);
         } else {
           setCredentialsError();
         }
       } else {
         toast({
           title: "Login Successful",
-          description: "Redirecting to your dashboard...",
-          variant: "default",
+          description: "Redirecting to dashboard...",
         });
-
-        // Force a session check and redirect
-        const checkSession = await fetch("/api/auth/check-session");
-        const sessionData = await checkSession.json();
-
-        if (sessionData.authenticated && sessionData.user?.role) {
-          const redirectPath = determineRedirectPath(sessionData.user.role);
-          window.location.href = redirectPath;
-        }
       }
     } catch (error) {
-      console.error("Unexpected error during sign in:", error);
+      console.error("Login error:", error);
       setCustomError(
-        "Unexpected Error",
-        "Something went wrong. Please try again later."
+        "Login Failed",
+        "An unexpected error occurred. Please try again."
       );
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Show loading state
+  // Show loading state while checking session
   if (status === "loading") {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-gray-50 to-gray-100">
         <Card className="w-full max-w-md p-6 shadow-lg">
           <div className="flex flex-col items-center justify-center py-8">
             <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
-            <h2 className="text-xl font-semibold">Loading session...</h2>
-            <p className="text-sm text-gray-500 mt-2">Please wait</p>
+            <h2 className="text-xl font-semibold">Loading...</h2>
           </div>
         </Card>
       </div>
     );
   }
 
-  // Show login form if not authenticated
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-gray-50 to-gray-100">
       <div className="w-full max-w-md p-4">
-        <Card className="shadow-xl border-t-4 border-t-purple-500 animate-fadeIn">
+        <Card className="shadow-xl border-t-4 border-t-purple-500">
           <CardHeader className="space-y-1 text-center">
             <div className="flex justify-center mb-4">
               <div className="h-14 w-14 rounded-full bg-gradient-to-br from-purple-600 to-blue-500 flex items-center justify-center shadow-md">
@@ -199,88 +151,52 @@ function LoginForm() {
                 <AlertTitle className="font-medium">
                   {authError.title}
                 </AlertTitle>
-                <AlertDescription className="text-sm mt-1">
-                  {authError.message}
-                </AlertDescription>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="absolute right-2 top-2 hover:bg-red-100 text-red-800"
-                  onClick={clearError}
-                >
-                  <XCircle className="h-4 w-4" />
-                </Button>
+                {authError.message && (
+                  <p className="text-sm mt-1">{authError.message}</p>
+                )}
               </Alert>
             )}
-
-            <form onSubmit={handleSubmit} className="space-y-5">
+            <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label
-                  htmlFor="email"
-                  className="text-sm font-medium text-gray-700"
-                >
-                  Email
-                </Label>
-                <div className="relative">
-                  <MailIcon className="absolute left-3 top-2.5 h-5 w-5 text-muted-foreground" />
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="name@example.com"
-                    className={`pl-10 transition-all duration-200 h-11 ${
-                      authError
-                        ? "border-red-300 focus-visible:ring-red-300"
-                        : "focus-visible:ring-purple-300 border-gray-200"
-                    }`}
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    disabled={isLoading}
-                    autoComplete="email"
-                  />
-                </div>
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="Enter your email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  disabled={isLoading}
+                  className="w-full"
+                />
               </div>
               <div className="space-y-2">
-                <Label
-                  htmlFor="password"
-                  className="text-sm font-medium text-gray-700"
-                >
-                  Password
-                </Label>
+                <Label htmlFor="password">Password</Label>
                 <div className="relative">
-                  <LockIcon className="absolute left-3 top-2.5 h-5 w-5 text-muted-foreground" />
                   <Input
                     id="password"
                     type={showPassword ? "text" : "password"}
-                    placeholder="••••••••"
-                    className={`pl-10 transition-all duration-200 h-11 ${
-                      authError
-                        ? "border-red-300 focus-visible:ring-red-300"
-                        : "focus-visible:ring-purple-300 border-gray-200"
-                    }`}
+                    placeholder="Enter your password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     disabled={isLoading}
-                    autoComplete="current-password"
+                    className="w-full pr-10"
                   />
-                  <Button
+                  <button
                     type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="absolute right-1 top-1"
                     onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
                   >
                     {showPassword ? (
-                      <EyeOffIcon className="h-5 w-5 text-muted-foreground" />
+                      <EyeOffIcon className="h-5 w-5" />
                     ) : (
-                      <EyeIcon className="h-5 w-5 text-muted-foreground" />
+                      <EyeIcon className="h-5 w-5" />
                     )}
-                    <span className="sr-only">Toggle password visibility</span>
-                  </Button>
+                  </button>
                 </div>
               </div>
               <Button
                 type="submit"
-                className="w-full h-11 mt-2 bg-gradient-to-r from-purple-600 to-blue-500 hover:from-purple-700 hover:to-blue-600 transition-all duration-300 transform hover:scale-[1.01] focus:scale-[0.99]"
+                className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
                 disabled={isLoading}
               >
                 {isLoading ? (
@@ -296,15 +212,10 @@ function LoginForm() {
           </CardContent>
         </Card>
       </div>
-      {process.env.NODE_ENV !== "production" && <AuthDebug />}
     </div>
   );
 }
 
 export default function LoginPage() {
-  return (
-    <Suspense fallback={<div>Loading...</div>}>
-      <LoginForm />
-    </Suspense>
-  );
+  return <LoginForm />;
 }
